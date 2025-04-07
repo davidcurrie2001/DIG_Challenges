@@ -5,6 +5,7 @@ library(dplyr)
 library(DT)
 library(networkD3)
 library(ggpubr)
+library(shinycssloaders)
 
 
 #### UI ####
@@ -12,7 +13,7 @@ library(ggpubr)
 ui <- shinyUI(fluidPage(
   
   # Application title
-  titlePanel("DIG Challenges and Opportunities"),
+  titlePanel("ICES DIG Challenges and Opportunities"),
   
   
   sidebarLayout(
@@ -40,13 +41,16 @@ ui <- shinyUI(fluidPage(
       tabsetPanel(
         tabPanel("Summary", 
                  dataTableOutput("summaryTable"),
-                 plotOutput("relatedIssuePlot")),
+                 plotOutput("relatedIssuePlot")
+                 ),
         tabPanel("Network Graph", forceNetworkOutput("force")),
         tabPanel("About", 
           br(),
-          "Part of the remit of the ICES Data and Information Group (",
+          "The ICES Data and Information Group (",
           a(href=paste0("https://www.ices.dk/community/groups/Pages/DIG.aspx"),"DIG",target="_blank"),
-          ") is to evaluate and monitor current and future challenges and opportunities in data management.  
+          ") use GitHub issues to manage their actions.",
+          p(),
+          "Part of the remit of DIG is to evaluate and monitor current and future challenges and opportunities in data management.  
           The DIG Challenges & Opportunities tracker is implemented in ",
           a(href=paste0("https://github.com/orgs/ices-eg/projects/6/views/1"),"GitHub",target="_blank"),
           "so that it can be viewed externally.  Entries are split between 'challenge' and 'opportunity' and scored according to likelihood and impact. This allows a severity rating to be calculated for each item; minor, medium and major.",
@@ -58,7 +62,9 @@ ui <- shinyUI(fluidPage(
               tags$li("Minor: monitored by DIG")
             ),
           p(),
-          "DIG use GitHub issues to managed their actions.  This tool allows you to explore the challenges and opportunities and see which issues are related to them."
+          "This tool allows you to explore the challenges and opportunities and see which issues are related to them.",
+          p(),
+          textOutput("QueryDate")
           )
       )
     )
@@ -68,12 +74,42 @@ ui <- shinyUI(fluidPage(
 #### Server ####
 server <- function(input, output, session) {
   
+  useLocalData <- FALSE
+  queryDate <- NA
+  
+  # Show a spinner whilst app data is being loaded
+  showPageSpinner()
+  
   # load the data
-  load("data/DIG_Issues.RData")
+  if (useLocalData){
+    load("data/DIG_Issues.RData")
+  } else {
+    githubDataURL <- "https://raw.githubusercontent.com/davidcurrie2001/DIG_Challenges/refs/heads/master/data/DIG_Issues.RData"
+    load(url(githubDataURL))
+  }
+  
+  # Hide the spinner once data is loaded
+  hidePageSpinner()
+  
+  queryDate <- DIG_Issues[["queryDate"]]
+  
   AllIssues <- DIG_Issues[["issues"]]
   AllIssues$Type <- ifelse(AllIssues$Challenge == TRUE, 'Challenge', 
                                   ifelse(AllIssues$Opportunity == TRUE, 'Opportunity', 'Issue'))
   IssueLinks <- DIG_Issues[["links"]]
+  
+  # Show the date the data was extracted on
+  output$QueryDate <- renderText({
+    
+    if(!is.na(queryDate)){
+      queryDateDisplay <- format(queryDate, format = "%H:%M, %d %B %Y")
+      dateText <- paste0("The data displayed in this app was extracted from GitHub at ",queryDateDisplay)
+    } else {
+      dateText <- ""
+    }
+    dateText
+    
+  })
   
   
   # Filter the input data using the widget values
