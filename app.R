@@ -44,7 +44,7 @@ ui <- shinyUI(fluidPage(
         tabPanel("Network Graph", forceNetworkOutput("force")),
         tabPanel("About", 
           br(),
-          "Part of the remit of the ICES Data and Infromation Group (",
+          "Part of the remit of the ICES Data and Information Group (",
           a(href=paste0("https://www.ices.dk/community/groups/Pages/DIG.aspx"),"DIG",target="_blank"),
           ") is to evaluate and monitor current and future challenges and opportunities in data management.  
           The DIG Challenges & Opportunities tracker is implemented in ",
