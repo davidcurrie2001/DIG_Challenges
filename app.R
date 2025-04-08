@@ -15,7 +15,9 @@ ui <- shinyUI(fluidPage(
   # Application title
   titlePanel("ICES DIG Challenges and Opportunities"),
   
-  
+  # use default Bootstrap styles
+  theme = bs_theme(bootswatch = "lumen"),
+
   sidebarLayout(
     
     # Controls 
@@ -33,40 +35,70 @@ ui <- shinyUI(fluidPage(
       selectInput("issueSelect",
                   label="Issue Number",
                   choices=c(),
-                  multiple = TRUE)
+                  multiple = TRUE),
+      selectInput("paletteSelect",
+                  label="Plot palette",
+                  choices=c("RGB","RYB","Red","Green","Blue","Grey"),
+                  selected="RGB",
+                  multiple = FALSE),
+      "Dark/light mode:", input_dark_mode(id = "mode")
       , width = 2),
     
     # Main content
     mainPanel(
       tabsetPanel(
+        tabPanel("About", 
+                 br(),
+                 "The ICES Data and Information Group (",
+                 a(href=paste0("https://www.ices.dk/community/groups/Pages/DIG.aspx"),"DIG",target="_blank"),
+                 ") use GitHub issues to manage their actions.",
+                 p(),
+                 "Part of the remit of DIG is to evaluate and monitor current and future challenges and opportunities in data management.  
+          The DIG Challenges & Opportunities tracker is implemented in ",
+                 a(href=paste0("https://github.com/orgs/ices-eg/projects/6/views/1"),"GitHub",target="_blank"),
+                 "so that it can be viewed externally.  Entries are split between 'challenge' and 'opportunity' and scored according to likelihood and impact. This allows a severity rating to be calculated for each item; minor, medium and major.",
+                 p(),
+                 "The next steps for each entry depend on the severity:",
+                 tags$ul(
+                   tags$li("Major: Include summary of challenge/opportunity in DIG reports and briefing to SCICOM. DIG to make recommendations for action if necessary"), 
+                   tags$li("Medium: Include summary of challenge/opportunity in DIG reports. DIG to make recommendations for action if necessary"), 
+                   tags$li("Minor: monitored by DIG")
+                 ),
+                 p(),
+                 "This tool allows you to explore the challenges and opportunities and see which issues are related to them.",
+                 p(),
+                 textOutput("QueryDate")
+        ),
         tabPanel("Summary", 
                  dataTableOutput("summaryTable"),
                  plotOutput("relatedIssuePlot")
                  ),
-        tabPanel("Network Graph", forceNetworkOutput("force")),
-        tabPanel("About", 
-          br(),
-          "The ICES Data and Information Group (",
-          a(href=paste0("https://www.ices.dk/community/groups/Pages/DIG.aspx"),"DIG",target="_blank"),
-          ") use GitHub issues to manage their actions.",
-          p(),
-          "Part of the remit of DIG is to evaluate and monitor current and future challenges and opportunities in data management.  
-          The DIG Challenges & Opportunities tracker is implemented in ",
-          a(href=paste0("https://github.com/orgs/ices-eg/projects/6/views/1"),"GitHub",target="_blank"),
-          "so that it can be viewed externally.  Entries are split between 'challenge' and 'opportunity' and scored according to likelihood and impact. This allows a severity rating to be calculated for each item; minor, medium and major.",
-          p(),
-          "The next steps for each entry depend on the severity:",
-            tags$ul(
-              tags$li("Major: Include summary of challenge/opportunity in DIG reports and briefing to SCICOM. DIG to make recommendations for action if necessary"), 
-              tags$li("Medium: Include summary of challenge/opportunity in DIG reports. DIG to make recommendations for action if necessary"), 
-              tags$li("Minor: monitored by DIG")
-            ),
-          p(),
-          "This tool allows you to explore the challenges and opportunities and see which issues are related to them.",
-          p(),
-          textOutput("QueryDate")
-          )
-      )
+        tabPanel("Network Graph", 
+                 forceNetworkOutput("force"),
+                 sliderInput( 
+                   "networkFont", 
+                   "Font size", 
+                   value = 14, 
+                   min = 1, 
+                   max = 20 
+                 ),
+                 sliderInput( 
+                   "networkDistance", 
+                   "Link Distance", 
+                   value = 50, 
+                   min = 1, 
+                   max = 100 
+                 ),
+                 sliderInput( 
+                   "networkCharge", 
+                   "Node repulsion/attraction", 
+                   value = -30, 
+                   min = -100, 
+                   max = 100 
+                 )
+                 
+              )
+      )  
     )
   )
 ))
@@ -74,9 +106,9 @@ ui <- shinyUI(fluidPage(
 #### Server ####
 server <- function(input, output, session) {
   
-  useLocalData <- FALSE
+  useLocalData <- TRUE
   queryDate <- NA
-  
+
   # Show a spinner whilst app data is being loaded
   showPageSpinner()
   
@@ -91,25 +123,48 @@ server <- function(input, output, session) {
   # Hide the spinner once data is loaded
   hidePageSpinner()
   
+  # When was the date extracted?
   queryDate <- DIG_Issues[["queryDate"]]
+  
   
   AllIssues <- DIG_Issues[["issues"]]
   AllIssues$Type <- ifelse(AllIssues$Challenge == TRUE, 'Challenge', 
                                   ifelse(AllIssues$Opportunity == TRUE, 'Opportunity', 'Issue'))
   IssueLinks <- DIG_Issues[["links"]]
   
-  # Show the date the data was extracted on
-  output$QueryDate <- renderText({
+  # Set our palette based on the input chosen
+  appPalette <- reactive({
     
-    if(!is.na(queryDate)){
-      queryDateDisplay <- format(queryDate, format = "%H:%M, %d %B %Y")
-      dateText <- paste0("The data displayed in this app was extracted from GitHub at ",queryDateDisplay)
-    } else {
-      dateText <- ""
+    paletteToUse <- list()
+    
+    if (input$paletteSelect == "RGB"){
+      paletteToUse <- list("Challenge"="#FF0000",
+                          "Opportunity"="#008000",
+                          "Issue"="#0000FF")
+    } else if (input$paletteSelect == "RYB"){
+      paletteToUse <- list("Challenge"="#FF0000",
+                           "Opportunity"="#FFFF00",
+                           "Issue"="#0000FF")
+    } else if (input$paletteSelect == "Grey"){
+      paletteToUse <- list("Challenge"="#000000",
+                           "Opportunity"="#A9A9A9",
+                           "Issue"="#b3b3b3")
+    } else if (input$paletteSelect == "Blue"){
+      paletteToUse <- list("Challenge"="#90D5FF",
+                           "Opportunity"="#0000FF",
+                           "Issue"="#004972")
+    } else if (input$paletteSelect == "Red"){
+      paletteToUse <- list("Challenge"="#F88379",
+                           "Opportunity"="#FF0000",
+                           "Issue"="#A42A04")
+    } else if (input$paletteSelect == "Green"){
+      paletteToUse <- list("Challenge"="#a7c957",
+                           "Opportunity"="#6a994e",
+                           "Issue"="#386641")
     }
-    dateText
     
-  })
+  })  
+
   
   
   # Filter the input data using the widget values
@@ -170,6 +225,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "issueSelect", choices = fi$number, selected = fi$number)
   })
   
+  # Join issues to their linked issues
   JoinIssuesWithLinks <- function(){
     
     issues <- FilterIssues()
@@ -187,6 +243,20 @@ server <- function(input, output, session) {
     myData
   }
   
+  ## OUTPUTS
+  
+  # Show the date the data was extracted on
+  output$QueryDate <- renderText({
+    
+    if(!is.na(queryDate)){
+      queryDateDisplay <- format(queryDate, format = "%H:%M, %d %B %Y")
+      dateText <- paste0("The data displayed in this app was extracted from GitHub at ",queryDateDisplay)
+    } else {
+      dateText <- ""
+    }
+    dateText
+    
+  })
   
   output$force <- renderForceNetwork({
     
@@ -221,10 +291,17 @@ server <- function(input, output, session) {
     Links <- Links[,c("source","target")]
     Links[is.na(Links$target),"target"] <- Links[is.na(Links$target),"source"]
     
-    # Define a custom palette
-    ColourScale <- 'd3.scaleOrdinal()
-            .domain(["Challenge", "Opportunity", "Issue" ])
-           .range(["#FF0000", "#008000", "#0000FF"]);'
+    
+    # Define a custom palette - the string should look something like this
+    #ColourScale <- 'd3.scaleOrdinal()
+    #        .domain(["Challenge", "Opportunity", "Issue" ])
+    #       .range(["#FF0000", "#008000", "#0000FF"]);'
+    ColourScale <- paste0("d3.scaleOrdinal().domain([",
+           paste("'",names(appPalette()),"'", sep="", collapse = ","),
+           "]).range([",
+           paste("'",appPalette(),"'", sep="", collapse = ","),
+           "]);")
+
     
     forceNetwork(Links = Links, 
                  Nodes = Nodes, 
@@ -233,11 +310,14 @@ server <- function(input, output, session) {
                  Target = "target", 
                  Group = "Type", 
                  opacity = 0.9,
-                 fontSize = 14,             
                  fontFamily = "serif",
                  colourScale = JS(ColourScale),
                  opacityNoHover = 1, # always show names
-                 zoom = TRUE)
+                 zoom = TRUE,
+                 legend = TRUE,
+                 fontSize = input$networkFont,  
+                 linkDistance = input$networkDistance,
+                 charge=input$networkCharge)
     
   })
   
@@ -257,11 +337,14 @@ server <- function(input, output, session) {
     
     # Create a consistent palette
     myPalette <- sort(unique(myCount$Type))
-    if (length(myPalette)==0) myPalette <- c("Grey")
-    myPalette <- replace(myPalette,myPalette == "Challenge","Red")
-    myPalette <- replace(myPalette,myPalette == "Opportunity","Green")
-    myPalette <- replace(myPalette,myPalette == "Issue","Blue")
-
+    if (length(myPalette)==0) {
+      myPalette <- c("Grey")
+    } else {
+      for(myType in names(appPalette())){
+        myPalette <- replace(myPalette,myPalette == myType,appPalette()[[myType]])
+      }
+    }
+    
     ggbarplot(myCount, x = "shortName", y = "relatedIssueCount",
               color = "black", fill = "Type", palette = myPalette) + 
       labs(x = "", y="Number of related issues") +
