@@ -73,10 +73,10 @@ ui <- shinyUI(fluidPage(
                  p(),
                  "This tool allows you to explore the challenges and opportunities and see which issues are related to them.",
                  p(),
-                 textOutput("QueryDate"),
-                 p(),
                  "You can use this button to create a URL with your filter settings saved:",
-                 bookmarkButton()
+                 bookmarkButton(),
+                 textOutput("QueryDate"),
+                 p()
         ),
         tabPanel("Summary", 
                  dataTableOutput("summaryTable"),
@@ -84,30 +84,54 @@ ui <- shinyUI(fluidPage(
                  ),
         tabPanel("Network Graph", 
                  forceNetworkOutput("force"),
-                 sliderInput( 
-                   "networkFont", 
-                   "Font size", 
-                   value = 14, 
-                   min = 1, 
-                   max = 20 
+                 tags$b("Graph Display Settings"),
+                 fluidRow(
+                   column(4, 
+                     sliderInput( 
+                       "networkNameLength", 
+                       "Max name length", 
+                       value = 40, 
+                       min = 1, 
+                       max = 200 
+                     )
+                   ),
+                   column(4, 
+                     sliderInput( 
+                       "networkFont", 
+                       "Font size", 
+                       value = 14, 
+                       min = 1, 
+                       max = 20 
+                     )
+                   )
                  ),
-                 sliderInput( 
-                   "networkDistance", 
-                   "Link Distance", 
-                   value = 50, 
-                   min = 1, 
-                   max = 100 
+                 fluidRow(
+                   column(4,
+                     sliderInput( 
+                       "networkDistance", 
+                       "Link Distance", 
+                       value = 50, 
+                       min = 1, 
+                       max = 100 
+                     )
+                   ),
+                   column(4,
+                     sliderInput( 
+                       "networkCharge", 
+                       "Node repulsion/attraction", 
+                       value = -30, 
+                       min = -100, 
+                       max = 100 
+                     )
+                   )
                  ),
-                 sliderInput( 
-                   "networkCharge", 
-                   "Node repulsion/attraction", 
-                   value = -30, 
-                   min = -100, 
-                   max = 100 
+                 fluidRow(
+                   column(4,
+                    checkboxInput("networkZoom", "Allow zoom?", FALSE)
+                   )
                  )
-                 
               )
-      )  
+        )  
     )
   )
 ))
@@ -274,10 +298,11 @@ server <- function(input, output, session) {
     
     # Need to make a single list of nodes
     # First get the challenge/oppotunities
-    Nodes <- myData[,c("id","number","shortName","Type")]
+    Nodes <- myData[,c("id","number","fullName","Type")]
+    names(Nodes) <- c("id","number","Name","Type")
     # then get the cross-references nodes
-    crossRef <- myData[!is.na(myData$crossRefById),c("crossRefById","crossRefBy_number","crossRefBy_shortName","crossRefBy_Type")]
-    names(crossRef) <- c("id","number","shortName","Type")
+    crossRef <- myData[!is.na(myData$crossRefById),c("crossRefById","crossRefBy_number","crossRefBy_fullName","crossRefBy_Type")]
+    names(crossRef) <- c("id","number","Name","Type")
     # then combind them
     Nodes <- rbind(Nodes,crossRef)
     # the de-dupe, order them, and generate an ID starting at 0
@@ -285,6 +310,9 @@ server <- function(input, output, session) {
     Nodes <- Nodes[order(Nodes$number),]
     Nodes$ID <- seq(0,nrow(Nodes)-1)
     rownames(Nodes) <- NULL
+    
+    # Shorten the names for display
+    Nodes$Name <- substr(Nodes$Name, 1, input$networkNameLength)
     
     # Now need to create the Links, with references to the numeric ID we just defined for each node
     Links <- myData
@@ -308,18 +336,17 @@ server <- function(input, output, session) {
            paste("'",appPalette(),"'", sep="", collapse = ","),
            "]);")
 
-    
     forceNetwork(Links = Links, 
                  Nodes = Nodes, 
-                 NodeID = "shortName",
+                 NodeID = "Name",
                  Source = "source", 
                  Target = "target", 
                  Group = "Type", 
-                 opacity = 0.9,
+                 opacity = 1.0,
                  fontFamily = "serif",
                  colourScale = JS(ColourScale),
                  opacityNoHover = 1, # always show names
-                 zoom = TRUE,
+                 zoom = input$networkZoom,
                  legend = TRUE,
                  fontSize = input$networkFont,  
                  linkDistance = input$networkDistance,
