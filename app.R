@@ -6,6 +6,7 @@ library(DT)
 library(networkD3)
 library(ggpubr)
 library(shinycssloaders)
+library(shinyWidgets)
 
 
 #### UI ####
@@ -32,10 +33,15 @@ ui <- shinyUI(fluidPage(
                   choices=c("Major","Medium","Minor"),
                   selected="Major",
                   multiple = TRUE),
-      selectInput("issueSelect",
+      pickerInput("issuePicker",
                   label="Issue Number",
                   choices=c(),
-                  multiple = TRUE),
+                  multiple = TRUE,
+                  options = pickerOptions(
+                    actionsBox = TRUE,
+                    selectedTextFormat = "count > 0",
+                    countSelectedText = "{0}/{1} issues")
+                  ),
       selectInput("paletteSelect",
                   label="Plot palette",
                   choices=c("RGB","RYB","Red","Green","Blue","Grey"),
@@ -47,7 +53,7 @@ ui <- shinyUI(fluidPage(
     # Main content
     mainPanel(
       tabsetPanel(
-        tabPanel("About", 
+        tabPanel("Introduction", 
                  br(),
                  "The ICES Data and Information Group (",
                  a(href=paste0("https://www.ices.dk/community/groups/Pages/DIG.aspx"),"DIG",target="_blank"),
@@ -67,7 +73,10 @@ ui <- shinyUI(fluidPage(
                  p(),
                  "This tool allows you to explore the challenges and opportunities and see which issues are related to them.",
                  p(),
-                 textOutput("QueryDate")
+                 textOutput("QueryDate"),
+                 p(),
+                 "You can use this button to create a URL with your filter settings saved:",
+                 bookmarkButton()
         ),
         tabPanel("Summary", 
                  dataTableOutput("summaryTable"),
@@ -108,9 +117,16 @@ server <- function(input, output, session) {
   
   useLocalData <- TRUE
   queryDate <- NA
+  
+  defaultPalette <- list("Challenge"="#FF0000",
+                         "Opportunity"="#008000",
+                         "Issue"="#0000FF")
 
   # Show a spinner whilst app data is being loaded
   showPageSpinner()
+  
+  # load palettes
+  AllPalettes <- read.csv(file="data/palettes.csv")
   
   # load the data
   if (useLocalData){
@@ -132,37 +148,21 @@ server <- function(input, output, session) {
                                   ifelse(AllIssues$Opportunity == TRUE, 'Opportunity', 'Issue'))
   IssueLinks <- DIG_Issues[["links"]]
   
+
+  
   # Set our palette based on the input chosen
   appPalette <- reactive({
     
-    paletteToUse <- list()
-    
-    if (input$paletteSelect == "RGB"){
-      paletteToUse <- list("Challenge"="#FF0000",
-                          "Opportunity"="#008000",
-                          "Issue"="#0000FF")
-    } else if (input$paletteSelect == "RYB"){
-      paletteToUse <- list("Challenge"="#FF0000",
-                           "Opportunity"="#FFFF00",
-                           "Issue"="#0000FF")
-    } else if (input$paletteSelect == "Grey"){
-      paletteToUse <- list("Challenge"="#000000",
-                           "Opportunity"="#A9A9A9",
-                           "Issue"="#b3b3b3")
-    } else if (input$paletteSelect == "Blue"){
-      paletteToUse <- list("Challenge"="#90D5FF",
-                           "Opportunity"="#0000FF",
-                           "Issue"="#004972")
-    } else if (input$paletteSelect == "Red"){
-      paletteToUse <- list("Challenge"="#F88379",
-                           "Opportunity"="#FF0000",
-                           "Issue"="#A42A04")
-    } else if (input$paletteSelect == "Green"){
-      paletteToUse <- list("Challenge"="#a7c957",
-                           "Opportunity"="#6a994e",
-                           "Issue"="#386641")
-    }
-    
+      selectedPalette <- AllPalettes[AllPalettes$paletteName == input$paletteSelect,]
+      if (nrow(selectedPalette) == 1){
+        paletteToUse <- list("Challenge" = selectedPalette[1, "Challenge"], 
+                             "Opportunity" = selectedPalette[1, "Opportunity"], 
+                             "Issue" = selectedPalette[1, "Issue"] 
+        )
+      } else {
+        warning("Problem reading palettes data - using default values instead")
+        paletteToUse <- defaultPalette
+      }
   })  
 
   
@@ -208,11 +208,11 @@ server <- function(input, output, session) {
     myIssuesFiltered <- FilterIssues_Step1()
     
     # If we have soemthing in the issue input then filter using that
-    if (length(input$issueSelect) == 0 & is.null(input$issueSelect)){
+    if (length(input$issuePicker) == 0 & is.null(input$issuePicker)){
       myIssuesFiltered <- myIssuesFiltered[0==1,]
     } else {
       # Filter by the issue numbers
-      myIssuesFiltered <- myIssuesFiltered[myIssuesFiltered$number  %in% input$issueSelect,]
+      myIssuesFiltered <- myIssuesFiltered[myIssuesFiltered$number  %in% input$issuePicker,]
     }
     
     myIssuesFiltered
@@ -222,7 +222,7 @@ server <- function(input, output, session) {
   # Update the issue number select input based on the other inputs
   observe({
     fi <- FilterIssues_Step1()
-    updateSelectInput(session, "issueSelect", choices = fi$number, selected = fi$number)
+    updatePickerInput(session, "issuePicker", choices = fi$number, selected = fi$number)
   })
   
   # Join issues to their linked issues
@@ -250,14 +250,20 @@ server <- function(input, output, session) {
     
     if(!is.na(queryDate)){
       queryDateDisplay <- format(queryDate, format = "%H:%M, %d %B %Y")
-      dateText <- paste0("The data displayed in this app was extracted from GitHub at ",queryDateDisplay)
+      dateText <- paste0("The data displayed in this app was extracted from GitHub at ",queryDateDisplay,".  ")
     } else {
       dateText <- ""
     }
+    
+    if(useLocalData == TRUE ){
+      dateText <- paste0(dateText,"The data is being loaded from the app's local repository.")
+    }
+    
     dateText
     
   })
   
+
   output$force <- renderForceNetwork({
     
     myData <- JoinIssuesWithLinks()
@@ -373,4 +379,4 @@ server <- function(input, output, session) {
 
 
 # Run the application 
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, enableBookmarking = "url")
