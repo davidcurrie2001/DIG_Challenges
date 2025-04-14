@@ -5,7 +5,8 @@ library(httr)
 # Script to get the DIG issues from the right project and format them for the Shiny app
 
 # Set your GitHub personal access token
-GITHUB_TOKEN <- readLines("data-raw/PAT.txt")
+#GITHUB_TOKEN <- readLines("data-raw/PAT.txt")
+GITHUB_TOKEN <- Sys.getenv("GITHUB_TOKEN")
 
 # Create a client to access the github graphql api
 initClient <- function(){
