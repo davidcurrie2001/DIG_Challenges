@@ -21,4 +21,4 @@ jobs:
           Rscript -e "install.packages(c('httr', 'jsonlite', 'ghql'), repos='https://cloud.r-project.org')"
 
       - name: Run GitHubGraphQL.R
-        run: Rscript GitHubGraphQL.R
+        run: Rscript data-raw/GitHubGraphQL.R
