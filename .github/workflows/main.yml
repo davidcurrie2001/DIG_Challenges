@@ -37,3 +37,16 @@ jobs:
         run: Rscript data-raw/GitHubGraphQL.R
         env:
           myToken: ${{ secrets.DC_PAT }}
+
+      - name: Commit and push updated RData file
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/DIG_Issues.RData
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update DIG_Issues.RData [auto commit]"
+            git push
+          fi
