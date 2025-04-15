@@ -163,7 +163,7 @@ fetchProjectIssues <- function(client, projectID, resultsPerPage) {
     
     # Execute the query
     response <- client$exec(qry$queries$mydata)
-    print(response)
+    #print(response)
     
     #project_issues <- fromJSON(x)$data$node$items$nodes
     
@@ -344,6 +344,7 @@ DIG_Issues <- getIssuesAndCrossRefsForProject(client = myClient,
                                             projectID = "PVT_kwDOATlSQs4AHje4")
 
 # Save the data
+print("Saving the new data")
 save(DIG_Issues, file="data/DIG_Issues.RData")
 
 
