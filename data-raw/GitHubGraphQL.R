@@ -163,6 +163,7 @@ fetchProjectIssues <- function(client, projectID, resultsPerPage) {
     
     # Execute the query
     response <- client$exec(qry$queries$mydata)
+    print(response)
     
     #project_issues <- fromJSON(x)$data$node$items$nodes
     
@@ -336,7 +337,7 @@ getIssuesAndCrossRefsForProject <- function(client, projectID, resultsPerPage = 
 myClient <- initClient()
 
 # get the DIG projects
-projects <- getProjects(client = myClient, owner = "ices-eg", repo = "DIG")
+#projects <- getProjects(client = myClient, owner = "ices-eg", repo = "DIG")
 
 # Get the DIG issues
 DIG_Issues <- getIssuesAndCrossRefsForProject(client = myClient, 
