@@ -9,9 +9,14 @@ jobs:
   run-r-script:
     runs-on: ubuntu-latest
 
+    permissions:
+      checks: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN  }}
 
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
