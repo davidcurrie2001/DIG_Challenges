@@ -6,7 +6,7 @@ library(httr)
 
 # Set your GitHub personal access token
 #GITHUB_TOKEN <- readLines("data-raw/PAT.txt")
-GITHUB_TOKEN <- Sys.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN <- Sys.getenv("myToken")
 
 # Create a client to access the github graphql api
 initClient <- function(){
