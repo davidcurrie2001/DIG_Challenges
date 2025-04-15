@@ -36,4 +36,4 @@ jobs:
       - name: Run GitHubGraphQL.R
         run: Rscript data-raw/GitHubGraphQL.R
         env:
-          GITHUB_TOKEN: ${{ secrets.DC_PAT }}
+          myToken: ${{ secrets.DC_PAT }}
