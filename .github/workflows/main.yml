@@ -5,8 +5,6 @@ on:
     - cron: '30 2 * * *'  # Runs at 2:30 AM UTC daily
   workflow_dispatch:
 
-permissions: read-all
-
 jobs:
   run-r-script:
     runs-on: ubuntu-latest
@@ -38,4 +36,4 @@ jobs:
       - name: Run GitHubGraphQL.R
         run: Rscript data-raw/GitHubGraphQL.R
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DC_PAT }}
